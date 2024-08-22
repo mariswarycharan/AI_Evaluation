@@ -13,9 +13,9 @@ from dotenv import load_dotenv
 
 st.cache_resource(show_spinner=False)
 def load_model():
-    # load_dotenv()
-    # os.getenv("GOOGLE_API_KEY")
-    genai.configure(api_key='AIzaSyCN8bK-8lFUKTxMd2dBEgSSIPBsHEbnYig')
+    load_dotenv()
+    os.getenv("GOOGLE_API_KEY")
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
     
     model = ChatGoogleGenerativeAI(model="gemini-1.5-flash",
                              temperature=0 , convert_system_message_to_human=True)
