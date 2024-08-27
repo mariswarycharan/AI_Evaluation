@@ -9,7 +9,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
-
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 st.cache_resource(show_spinner=False)
 def load_model():
@@ -44,7 +46,7 @@ def get_pdf_text(docs):
     return  text
 
 def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=50)
     chunks = text_splitter.split_text(text)
     return chunks
 
@@ -59,30 +61,30 @@ st.cache_resource(show_spinner=False)
 def get_conversational_chain():
 
     prompt_template = """
-You are a helpful academic AI assistant tasked with evaluating student answer sheets.
-Your job is to conduct a fair and responsible assessment of student responses based on three key criteria: Relevance, Correctness, and Depth of Knowledge.
-try to reason about the question step by step. Dis the student has given the correct answer? If the answer or the solution is wrong please give reasons.
+You are a highly intelligent and meticulous academic AI assistant tasked with evaluating student answer sheets. Your primary objective is to perform a fair, thorough, and insightful assessment of student responses based on three critical criteria: Relevance, Correctness, and Depth of Knowledge. Your evaluation should not only determine if the student’s response is correct but also consider how well the student has understood and articulated the underlying concepts.
 
-Criteria for Evaluation:
-1. Relevance (0 - 0.3 marks): The extent to which the student’s response addresses the question.
-2. Correctness (0.31 - 0.6 marks): The accuracy of the information provided, including facts and technical details.
-3. Depth of Knowledge (0.61 - 1 marks): The depth and breadth of understanding demonstrated by the student.
-4. Give me final score (sum of all marks)
-Instructions:
-1. Compare the student's response to the original answer key semantically.
-2. Assess the response based on the criteria mentioned above.
-3. Allocate marks for each category (Relevance, Correctness, Depth of Knowledge) considering semantic similarity.
-4. Provide the marks to each question and a brief justification for the marks awarded in each category.
-5. Consolidate all the marks scored for each question into a final score.
-6. Display the rollnumer of the student and the final score
+**Evaluation Criteria:**
+1. **Relevance**: Evaluate the extent to which the student’s response directly addresses the question posed. Consider whether the answer stays on topic and fulfills the requirements of the question.
+2. **Correctness**: Assess the accuracy of the information provided by the student. This includes checking facts, figures, and any technical details to ensure the response is factually correct and logically sound.
+3. **Depth of Knowledge**: Analyze the depth and breadth of the student’s understanding as demonstrated in the response. Look for insightful explanations, connections to broader concepts, and a clear demonstration of mastery over the subject matter.
 
-Original Answer Key:
-{context} \n
+**Scoring Instructions:**
+- Allocate a maximum of 2 marks per question, considering all three criteria together.
+- If a student has answered multiple questions, sum up the marks awarded for each question and provide a final score in the format: *Student scored X/Total Marks*.
 
-Student's Written Answer:
-{input_value} \n
+**Process:**
+1. Begin by semantically comparing the student's response to the original answer key.
+2. Reason through the answer step by step to determine if the student has given a correct and relevant response.
+3. If an answer is incorrect or incomplete, provide a brief explanation highlighting the inaccuracies or missing elements.
+4. After evaluating each question individually, sum up the marks to provide a final score.
 
-Evaluate the student's answer and provide marks for each category and final score.
+**Original Answer Key:**
+{context}
+
+**Student's Written Answer:**
+{input_value}
+
+Evaluate the student's answers, allocate up to 2 marks per question based on the overall assessment, provide justifications for the marks awarded, and calculate the final score. If there are 10 questions, for example, you should present the final score as *Student scored X/20* (with 20 being the total possible marks for 10 questions).
 
 """
     
@@ -117,32 +119,94 @@ for message in st.session_state.messages_document:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-def main():
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_CENTER
 
-    if prompt := st.chat_input("What is up?"):
-        
-        st.chat_message("user").markdown(prompt)
-        st.session_state.messages_document.append({"role": "user", "content": prompt})
-        
-        with st.spinner('Wait for it...........'):  
-            response,source_docs = user_input(prompt)
-            st.markdown(response)
-            st.write(source_docs)
-            
-            
-        st.session_state.messages_document.append({"role": "assistant", "content": response})
-        
+def generate_pdf(content):
+    # Create a buffer to hold the PDF data
+    buffer = io.BytesIO()
+
+    # Create a document template with margins
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            rightMargin=72, leftMargin=72,
+                            topMargin=72, bottomMargin=18)
+
+    # Set up styles
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    header_style = styles['Heading1']
+    header_style.alignment = TA_CENTER
+
+    # Container for the 'flowable' elements in the document
+    elements = []
+
+    # Add a header
+    elements.append(Paragraph("Student Report", header_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # Split the content into paragraphs and add to PDF
+    for line in content.split('\n'):
+        elements.append(Paragraph(line, normal_style))
+        elements.append(Spacer(1, 0.1 * inch))  # Add space between lines
+
+    # Add a page break (optional)
+    elements.append(PageBreak())
+
+    # Build the PDF
+    doc.build(elements)
+
+    # Seek the buffer to the beginning
+    buffer.seek(0)
+    return buffer
+
+def main():
+    if "messages_document" not in st.session_state:
+        st.session_state.messages_document = []
+
     with st.sidebar:
-        st.title("Menu:")
-        pdf_docs = st.file_uploader("Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
+        st.title("Upload Answer Key:")
+        pdf_docs = st.file_uploader("Upload your Answer Key and Click on the Submit & Process Button", accept_multiple_files=True)
+        answer_key_button = st.button("Submit & Process Answer Key")
         
-        if st.button("Submit & Process"):
+        st.title("Upload Student's Answer Sheet:")
+        question_docs = st.file_uploader("Upload your Student's Answer Sheet and Click on the Submit & Process Button", accept_multiple_files=True)
+        question_button = st.button("Submit & Process Student's Answer Sheet")
+        
+        download_button = st.button("Download Report")
+        
+        if answer_key_button:
             with st.spinner("Processing..."):
-                
                 raw_text = get_pdf_text(pdf_docs)
                 text_chunks = get_text_chunks(raw_text)
                 get_vector_store(text_chunks)
                 st.success("Done")
+                
+    if question_button:
+        text_content_question = get_pdf_text(question_docs)
+        st.chat_message("user").markdown(text_content_question)
+        st.session_state.messages_document.append({"role": "user", "content": text_content_question})
+        
+        with st.spinner('Wait for it...........'):  
+            response, source_docs = user_input(text_content_question)
+            st.markdown(response)
+            st.session_state.messages_document.append({"role": "assistant", "content": response})
+            pdf = generate_pdf(response)
+            st.download_button(label="Download PDF",
+                                data=pdf,
+                                file_name="report.pdf",
+                                mime="application/pdf") 
+    # Add a button to download the response as a PDF
+    if download_button:
+        pdf = generate_pdf(response)
+        st.download_button(label="Download PDF",
+                            data=pdf,
+                            file_name="report.pdf",
+                            mime="application/pdf")  
 
 if __name__ == "__main__":
     main()
