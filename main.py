@@ -11,7 +11,12 @@ from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 import io
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_CENTER
+
 
 st.cache_resource(show_spinner=False)
 def load_model():
@@ -119,13 +124,6 @@ for message in st.session_state.messages_document:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.enums import TA_CENTER
 
 def generate_pdf(content):
     # Create a buffer to hold the PDF data
@@ -176,9 +174,7 @@ def main():
         st.title("Upload Student's Answer Sheet:")
         question_docs = st.file_uploader("Upload your Student's Answer Sheet and Click on the Submit & Process Button", accept_multiple_files=True)
         question_button = st.button("Submit & Process Student's Answer Sheet")
-        
-        download_button = st.button("Download Report")
-        
+
         if answer_key_button:
             with st.spinner("Processing..."):
                 raw_text = get_pdf_text(pdf_docs)
@@ -200,13 +196,7 @@ def main():
                                 data=pdf,
                                 file_name="report.pdf",
                                 mime="application/pdf") 
-    # Add a button to download the response as a PDF
-    if download_button:
-        pdf = generate_pdf(response)
-        st.download_button(label="Download PDF",
-                            data=pdf,
-                            file_name="report.pdf",
-                            mime="application/pdf")  
+
 
 if __name__ == "__main__":
     main()
