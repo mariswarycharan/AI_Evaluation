@@ -1,0 +1,25 @@
+[tool.poetry]
+package-mode = false
+name = "ai-evaluation"
+version = "0.1.0"
+description = "ai_evaluation"
+authors = ["Charan A A <mariswarycharan@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+streamlit = "*"  # Specify latest version or an exact version
+PyPDF2 = "*"  # Update to the latest version
+langchain = "*"  # Ensure the latest compatible version
+google-generativeai = "*"  # Use the correct package name from PyPI
+langchain-google-genai = "*" 
+faiss-cpu = "*"  # faiss for CPUs, or faiss-gpu if you're using GPU
+ragas = "*"  # Ensure the latest version
+datasets = "*"  # Hugging Face datasets library
+python-dotenv = "^1.0.1"
+reportlab = "^4.2.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
